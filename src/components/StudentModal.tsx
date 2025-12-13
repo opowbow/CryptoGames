@@ -27,10 +27,19 @@ const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4'
 export const StudentModal: React.FC<StudentModalProps> = ({ student, marketHistory, onClose, onUpdate }) => {
   const [activeTab, setActiveTab] = useState<'portfolio' | 'trade' | 'bank'>('portfolio');
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  const [selectedSymbol, setSelectedSymbol] = useState(CRYPTO_OPTIONS[0].symbol);
+  const [assets, setAssets] = useState<{ symbol: string, name: string, price: number }[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Fetch assets on mount
+  React.useEffect(() => {
+    api.getAssets().then(data => {
+        setAssets(data);
+        if (data.length > 0 && !selectedSymbol) setSelectedSymbol(data[0].symbol);
+    });
+  }, []);
 
   // Calculate chart data for portfolio performance
   const chartData = useMemo(() => {
@@ -265,9 +274,9 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, marketHisto
               {tradeType === 'buy' && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Select Currency</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {CRYPTO_OPTIONS.map(opt => (
+                    <label className="block text-sm font-medium text-slate-400 mb-2">Select Asset</label>
+                    <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                      {assets.map(opt => (
                         <button
                           key={opt.symbol}
                           onClick={() => setSelectedSymbol(opt.symbol)}
@@ -280,6 +289,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({ student, marketHisto
                         >
                           <div className="font-bold text-sm">{opt.symbol}</div>
                           <div className="text-xs opacity-70">{opt.name}</div>
+                          <div className="text-xs text-cyan-400 mt-1">€{opt.price.toFixed(2)}</div>
                         </button>
                       ))}
                     </div>

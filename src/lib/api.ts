@@ -1,6 +1,22 @@
 import { Student, WeeklySnapshot, AppState } from '../types';
 
 export const api = {
+  getAssets: async (): Promise<{ symbol: string, name: string, price: number }[]> => {
+    const res = await fetch('/api/assets', { cache: 'no-store' });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
+  addAsset: async (symbol: string, name: string, price: number) => {
+    const res = await fetch('/api/assets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol, name, price }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+
   getStudents: async (): Promise<Student[]> => {
     const res = await fetch('/api/students');
     if (!res.ok) throw new Error(await res.text());

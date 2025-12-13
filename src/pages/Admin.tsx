@@ -25,6 +25,11 @@ export const Admin: React.FC<AdminProps> = ({ onWeekUpdate }) => {
   const [color, setColor] = useState(COLORS[0]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  
+  // Asset Form State
+  const [assetSymbol, setAssetSymbol] = useState('');
+  const [assetName, setAssetName] = useState('');
+  const [assetPrice, setAssetPrice] = useState('');
 
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +133,70 @@ export const Admin: React.FC<AdminProps> = ({ onWeekUpdate }) => {
         >
           Advance Week
         </button>
+
+        <div className="mt-8 pt-8 border-t border-slate-800">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <Plus className="w-5 h-5 text-green-400" />
+            Add New Asset
+          </h3>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (!assetSymbol || !assetPrice) return;
+            setLoading(true);
+            try {
+              await api.addAsset(assetSymbol.toUpperCase(), assetName, parseFloat(assetPrice));
+              setMessage(`Added asset: ${assetSymbol}`);
+              setAssetSymbol('');
+              setAssetName('');
+              setAssetPrice('');
+            } catch (error) {
+              setMessage('Error adding asset');
+            } finally {
+              setLoading(false);
+              setTimeout(() => setMessage(''), 3000);
+            }
+          }} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Symbol (e.g. AAPL)</label>
+                <input
+                  type="text"
+                  value={assetSymbol}
+                  onChange={(e) => setAssetSymbol(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-500"
+                  placeholder="SYMBOL"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Name (Optional)</label>
+                <input
+                  type="text"
+                  value={assetName}
+                  onChange={(e) => setAssetName(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-500"
+                  placeholder="Asset Name"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Initial Price (€)</label>
+              <input
+                type="number"
+                value={assetPrice}
+                onChange={(e) => setAssetPrice(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-500"
+                placeholder="0.00"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading || !assetSymbol || !assetPrice}
+              className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+            >
+              Add Asset
+            </button>
+          </form>
+        </div>
 
         <div className="mt-8 pt-8 border-t border-slate-800">
           <h3 className="text-red-500 font-bold mb-4 flex items-center gap-2">

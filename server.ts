@@ -44,6 +44,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS prices (
     symbol TEXT PRIMARY KEY,
+    name TEXT,
     price REAL NOT NULL
   );
 
@@ -54,15 +55,25 @@ db.exec(`
     price REAL NOT NULL
   );
 
+  -- Migration: Add name column if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(prices)").all() as any[];
+    if (!tableInfo.find(c => c.name === 'name')) {
+      db.prepare("ALTER TABLE prices ADD COLUMN name TEXT").run();
+    }
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+
   INSERT OR IGNORE INTO app_state (key, value) VALUES ('current_week', '1');
   
   -- Seed initial prices if not exist
-  INSERT OR IGNORE INTO prices (symbol, price) VALUES ('BTC-EUR', 95000.00);
-  INSERT OR IGNORE INTO prices (symbol, price) VALUES ('ETH-EUR', 2700.00);
-  INSERT OR IGNORE INTO prices (symbol, price) VALUES ('SOL-EUR', 145.00);
-  INSERT OR IGNORE INTO prices (symbol, price) VALUES ('DOGE-EUR', 0.35);
-  INSERT OR IGNORE INTO prices (symbol, price) VALUES ('ADA-EUR', 0.75);
-  INSERT OR IGNORE INTO prices (symbol, price) VALUES ('XRP-EUR', 2.10);
+  INSERT OR IGNORE INTO prices (symbol, name, price) VALUES ('BTC-EUR', 'Bitcoin', 95000.00);
+  INSERT OR IGNORE INTO prices (symbol, name, price) VALUES ('ETH-EUR', 'Ethereum', 2700.00);
+  INSERT OR IGNORE INTO prices (symbol, name, price) VALUES ('SOL-EUR', 'Solana', 145.00);
+  INSERT OR IGNORE INTO prices (symbol, name, price) VALUES ('DOGE-EUR', 'Dogecoin', 0.35);
+  INSERT OR IGNORE INTO prices (symbol, name, price) VALUES ('ADA-EUR', 'Cardano', 0.75);
+  INSERT OR IGNORE INTO prices (symbol, name, price) VALUES ('XRP-EUR', 'XRP', 2.10);
 `);
 
 // Seed initial history if empty
@@ -83,6 +94,33 @@ const getPrice = (symbol: string): number => {
 };
 
 // API Routes
+
+// Get Assets
+app.get('/api/assets', (req, res) => {
+  const assets = db.prepare("SELECT * FROM prices").all();
+  res.json(assets);
+});
+
+// Add Asset
+app.post('/api/assets', (req, res) => {
+  const { symbol, name, price } = req.body;
+  if (!symbol || !price) return res.status(400).json({ error: "Symbol and price required" });
+  
+  try {
+    const stmt = db.prepare("INSERT INTO prices (symbol, name, price) VALUES (?, ?, ?)");
+    stmt.run(symbol, name || symbol, price);
+    
+    // Add initial history for current week
+    const currentWeekRow = db.prepare("SELECT value FROM app_state WHERE key = 'current_week'").get() as { value: string };
+    const currentWeek = parseInt(currentWeekRow?.value || '0');
+    
+    db.prepare("INSERT INTO price_history (symbol, week_number, price) VALUES (?, ?, ?)").run(symbol, currentWeek, price);
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Get App State
 app.get('/api/state', (req, res) => {
@@ -289,16 +327,16 @@ app.post('/api/admin/reset', async (req, res) => {
 
       // 3. Reset Prices to Initial
       const initialPrices = [
-        { symbol: 'BTC-EUR', price: 95000.00 },
-        { symbol: 'ETH-EUR', price: 2700.00 },
-        { symbol: 'SOL-EUR', price: 145.00 },
-        { symbol: 'DOGE-EUR', price: 0.35 },
-        { symbol: 'ADA-EUR', price: 0.75 },
-        { symbol: 'XRP-EUR', price: 2.10 }
+        { symbol: 'BTC-EUR', name: 'Bitcoin', price: 95000.00 },
+        { symbol: 'ETH-EUR', name: 'Ethereum', price: 2700.00 },
+        { symbol: 'SOL-EUR', name: 'Solana', price: 145.00 },
+        { symbol: 'DOGE-EUR', name: 'Dogecoin', price: 0.35 },
+        { symbol: 'ADA-EUR', name: 'Cardano', price: 0.75 },
+        { symbol: 'XRP-EUR', name: 'XRP', price: 2.10 }
       ];
       
-      const updatePrice = db.prepare("UPDATE prices SET price = ? WHERE symbol = ?");
-      initialPrices.forEach(p => updatePrice.run(p.price, p.symbol));
+      const updatePrice = db.prepare("INSERT OR REPLACE INTO prices (symbol, name, price) VALUES (?, ?, ?)");
+      initialPrices.forEach(p => updatePrice.run(p.symbol, p.name, p.price));
 
       // 4. Seed History for Week 0
       const insertHist = db.prepare("INSERT INTO price_history (symbol, week_number, price) VALUES (?, ?, ?)");
@@ -306,7 +344,7 @@ app.post('/api/admin/reset', async (req, res) => {
 
       // 5. Create Test User
       const insertStudent = db.prepare("INSERT INTO students (name, color, cash_balance, bank_balance) VALUES (?, ?, ?, ?)");
-      const studentId = insertStudent.run("Joan Byers", "#ef4444", 0, 400).lastInsertRowid;
+      const studentId = insertStudent.run("Joan Byers", "#94a3b8", 0, 400).lastInsertRowid;
 
       // 6. Create Investments
       const insertInv = db.prepare("INSERT INTO investments (student_id, symbol, amount, cost_basis) VALUES (?, ?, ?, ?)");
